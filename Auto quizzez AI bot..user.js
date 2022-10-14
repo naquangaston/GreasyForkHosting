@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name Auto quizzez AI bot
 // @namespace http://tampermonkey.net/
-// @version 0.9
+// @version 1.62
 // @description this bot saves all right question and rembers the Q&A for later Q&A's are now stored;so it does not have to learn the same quiz again
 // @author You
 // @match *://quizizz.com/*
