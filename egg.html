@@ -1,0 +1,235 @@
+<script type="module">
+  import {Octokit,App} from "https://cdn.skypack.dev/octokit";
+import {Base64} from 'https://cdn.jsdelivr.net/npm/js-base64@3.7.2/base64.mjs';
+import {createOrUpdateTextFile,composeCreateOrUpdateTextFile,} from "https://cdn.pika.dev/@octokit/plugin-create-or-update-text-file";
+console.log('Importing')
+    window.Octokit=Octokit
+    window.App=App
+    window.Base64=Base64
+    window.createOrUpdateTextFile=createOrUpdateTextFile
+    window.composeCreateOrUpdateTextFile=composeCreateOrUpdateTextFile
+  </script>
+  <script>
+  function getTag(str) {
+    return function(tagsReg, metaTag, getT) {
+	console.log({tagsReg,metaTag,getT})
+        return (function(info, str) {
+		console.log({info,str})
+            return str.forEach(tag => {
+                !info[tag[1]] && (info[tag[1]] = []), info[tag[1]].push(tag[2])
+            }), info
+        })({}, (console.log({m:str.match(/\/{2} ={2}UserScript={2}\n(\/{2}[ ]+@([\w\-_$]+)[ ]+([^\n]+)[\n ]+)+/gi)}),str.match(metaTag)[0].match(tagsReg).map(e => e.match(getT))))
+    }(/(\/{2}[ ]+@(\w+)[ ]+([^\n]+))/gi, /\/{2} ={2}UserScript={2}\n(\/{2}[ ]+@([\w\-_$]+)[ ]+([^\n]+)[\n ]+)+\/{2} ={2}\/UserScript={2}/gi, /\/{2}[ ]+@(\w+)[ ]+([^\n]+)/)
+}
+function log(t,i){document.getElementById(`log${i||1}`).innerText=t}
+class Fork {
+    #fet = async function(url, maxC=5, c = 0,err) {
+        if (c < maxC) {
+            return await fetch(url).then(a => a, async b => await this.#fet(url, maxC, c + 1,b))
+        } else throw err
+    }
+    #fetSearch = async function(obj) {
+	var q=Object.keys(obj).map(key=>`${key}=${obj[key]}`).join('&');
+	return await this.#fet(`https://greasyfork.org/en/scripts.json?${q}`).then(e=>e.json())
+	}
+	#fetScript=async function(id){
+	return await this.#fet(`https://greasyfork.org/en/scripts/${id}.json`).then(r=>r.json())
+	}
+    #fetUser = async function(id) {
+	return await this.#fet(`https://greasyfork.org/en/users/${id}.json`).then(r=>r.json())
+    };
+    #fetCode = async function(id) {
+	return await this.#fet(`https://greasyfork.org/en/scripts/${id}/code.user.js`).then(r=>r.blob()).then(r=>r.text())
+    }
+    constructor() {
+        var onload = null
+        Object.assign(this, {
+            get onload() {
+                return onload
+            },
+            set onload(f) {
+                return onload = f
+            },
+        })
+    }
+	async script(id){return await this.#fetScript(id)}
+    async search(q) {
+        return await this.#fetSearch({q})
+    }
+	async user(id){return await this.#fetUser(id)}
+	async code(id){return await this.#fetCode(id)}
+}
+var GFORK = new Fork()
+Array.prototype.async=async function(func,method){
+var supported=['map','forEach','filter'];
+if(!supported.includes(method))throw (`${method} is not supported:\n[${supported.join(' - ')}] are supported`);
+if(method=='map'){var a=Array.from(this);for(let i=0;i<a.length;i++){a[i]=await func(a[i],i)}return a}
+if(method=='forEach'){for(let i=0;i<this.length;i++){await func(this[i])}}
+if(method=='filter'){let r=[];for(let i=0;i<this.length;i++){if(await func(this[i]))r.push(this[i])}return r}
+}
+onload = function() {
+    const MyOctokit = Octokit.plugin(createOrUpdateTextFile);
+    var toe = 'PQ==\nPQ==\nQQ==\nUw==\nRg==\neA==\naw==\nTg==\nbQ==\nRg==\nag==\nTQ==\nRw==\nNQ==\nVQ==\nVQ==\neQ==\nUg==\nbA==\nTg==\nSg==\nUg==\nRQ==\nTQ==\nMQ==\nNA==\nMA==\nWQ==\nMA==\naA==\nMA==\nVA==\nUA==\nRg==\nMA==\nUg==\ndQ==\neA==\nVQ==\nZQ==\naw==\nRg==\naw==\nUQ==\ncw==\nUg==\nWA==\nTw==\nTw==\nTg==\neg==\nWA==\ndw==\naA==\nMg==\nWg=='
+
+    const octokit = new MyOctokit({
+        auth: atob(toe.split('\n').map(atob).reverse().join('')),
+    });
+
+    !(async function() {
+        const {
+            data: {
+                login
+            }
+        } = await octokit.rest.users.getAuthenticated();
+        let owner = login
+        console.log('logged_in_as', owner)
+        async function deleteF({
+            owner,
+            repo,
+            path,
+            message = "no msg",
+            sha
+        }) {
+            await octokit.repos.deleteFile({
+                owner,
+                repo,
+                path,
+                message,
+                sha
+            });
+        }
+        async function getContentSha({
+            owner,
+            repo,
+            path
+        })
+		{
+            console.log({
+                owner,
+                repo,
+                path
+            })
+            var {
+                data: {
+                    sha
+                }
+            } = await octokit.request('GET /repos/{owner}/{repo}/contents/{path}', {
+                owner,
+                repo,
+                path
+            });
+            return sha
+        }
+        async function upLoadFile(repo, content, filename, path, b64 = false, ) {
+            var sha
+            try {
+                sha = await getContentSha({
+                    owner,
+                    repo,
+                    path: `${path?path+'/':""}${filename}`
+                })
+            } catch (e) {}
+            const fileOutput = b64 ? content : Base64.encode(content);
+            var _d = {
+                owner,
+                repo,
+                path: `${path?path+'/':""}${filename}`,
+                message: `feat: Added ${filename} programatically`,
+                content: fileOutput,
+                committer: {
+                    name: `Gaston`,
+                    email: 'naquangaston@gmail.com',
+                },
+                author: {
+                    name: 'Gaston',
+                    email: 'naquangaston@gmail.com',
+                },
+            };
+            sha ? _d.sha = sha : null;
+            const {
+                data
+            } = await octokit.rest.repos.createOrUpdateFileContents(_d);
+            console.log(sha ? 'updated' : "created", filename, 'Path:', path ? path + '/' : "")
+            return data
+        }
+        async function uoLoadFromUrl({
+            url,
+            path,
+            outname,
+            log
+        })
+		{
+            if (!url) throw new Error("\"url\" was not suplied");
+            const u = new URL(url);
+            var [l, w, e, i] = log ? ['log', 'warn', 'error', 'info'].map(e => {
+                return log[e] || console[e]
+            }) : [1, 2, 3].map(e => function() {
+                /*no loggin*/ });
+            l('requesting', u.pathname, '@', u.host)
+            async function selfDownload() {
+
+            }
+            async function monkeyDownload() {
+                //tampermonkey is better for cross domain request
+            }
+            //window.unsafewindow?(w('!',"")):(w(...(location.host!=u.host?["!",'tampermonkey not found. not using tampermonkey with the installed script will result in some domains blocking this request']:['!','tampermonkey not found']))
+            //url tampermonkey stuff
+        }
+
+        //return await upLoadFile('HostedFiles','Test hello world', '_tt.md')
+        function addI(a, ...d) {
+            ;
+            console.log(a);
+            (a == 'webm' ? videos : img).file(...d);
+        }
+
+        function df() {
+            zip.generateAsync({
+                    type: "blob"
+                })
+                .then(function(content) {
+                    // see FileSaver.js
+                    saveAs(content, "guess.zip");
+                });
+        }
+		var stuff=(await fetch('https://greasyfork.org/en/users/472665-gaston-1799.json').then(e=>e.json()))
+		console.log(stuff)
+        var scripts =stuff.all_listable_scripts
+        for (let i = 0; i < scripts.length; i++) {
+		    //console.log(scripts[i])
+            var ext = '.user.js'
+			const{namespace,name,locale,id,description,url,code_url,version}=scripts[i]
+			//var versions=await fetch(`https://greasyfork.org/en/scripts/${id}/versions.json`).then(e=>e.json())
+			
+			fetch(code_url).then(e=>e.text())
+			.then(async code=>{
+				if(namespace){
+				var meta=getTag(code)
+				//console.log({name,meta})
+				var md=[
+				`<img src="${meta.icon}" title='icon'>`,
+				'<br>',
+				`### ${name}`,
+				...(meta.description?[`## Description:`,'```',meta.description,'```']:['']),
+				...(meta.version?[`## Version:`,'```',meta.version,'```']:['']),
+				...(meta.require?[`## External scripts:`,'```',meta.require,'```']:['']),
+				`<a href='${url}'>Info:</a>`,
+				`<a href='${code_url}'>Install:</a>`,
+				' ',
+				`### Ignore`,
+				...(meta.grant?[`Grants:`,'```',meta.grants,'```']:['']),
+				...(meta.match?[`Matches:`,'```',meta.match,'```']:['']),
+				...(meta.include?[`Includes:`,'```',meta.include,'```']:['']),
+				].filter(e=>!!e).join('\n')
+				upLoadFile('GreasyForkHosting', md, `${name}.md`, '', false).then(e => e, e_ => console.warn(e_.message || e_))
+				upLoadFile('GreasyForkHosting', code, `${name}${ext}`, '', false).then(e => e, e_ => console.warn(e_.message || e_))
+				}else{
+				console.warn('Is library?:',name)
+				}
+			}).then(e => e, e_ => console.warn(e_.message || e_))
+        }
+    })()
+    .then(e => {}, e => console.warn(e.message || e))
+}
+
+</script>
